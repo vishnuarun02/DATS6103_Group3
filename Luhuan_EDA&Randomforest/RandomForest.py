@@ -16,8 +16,9 @@ df = students.copy()
 # random forest
 
 # List of columns to keep
-cols = [
-     'Debtor', 'Tuition fees up to date', 'Scholarship holder', 'Target']
+cols = ['Age at enrollment', 'Gender', 'Marital status', 'Displaced', 'Debtor', 'Tuition fees up to date',
+        'Scholarship holder', 'Application mode', "Daytime/evening attendance	", 'Course', 'Curricular units 2nd sem (approved)',
+        'Previous qualification', "Mother's occupation",'Target']
 
 # Keep only relevant columns
 df = df[cols]
@@ -41,14 +42,19 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random
 
 # Set up Random Forest classifier and GridSearchCV
 rf = RandomForestClassifier(random_state=0)
-param_grid = {
-    'n_estimators': [50, 100, 150],
-    'max_depth': [None, 10, 20, 30],
-    'min_samples_split': [2, 5, 10],
-    'min_samples_leaf': [1, 2, 4],
-}
+cv_params = {'n_estimators' : [40, 45, 50, 55],
+              'max_depth' : [20, 25, 30, 35],
+              'min_samples_leaf' : [0.8, 0.9, 1],
+              'min_samples_split' : [0.0005, 0.001, 0.0015, 0.002],
+              'max_features' : ['sqrt'],
+              'max_samples' : [.2, .25, .3, .35]}
 
-grid_search = GridSearchCV(rf, param_grid, cv=5, scoring='accuracy')
+rf = RandomForestClassifier(random_state=0)
+rf_val = GridSearchCV(rf, cv_params, cv=3, refit='accuracy', n_jobs = -1, verbose = 1)
+rf_val.fit(X_train, y_train)
+
+
+grid_search = GridSearchCV(rf, cv_params, cv=5, scoring='accuracy')
 grid_search.fit(X_train, y_train)
 
 print("Best Hyperparameters:", grid_search.best_params_)
