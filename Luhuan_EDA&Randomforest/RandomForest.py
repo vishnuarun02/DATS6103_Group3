@@ -16,10 +16,9 @@ df = students.copy()
 # random forest
 
 # List of columns to keep
-cols = ['Application mode', 'Course', 'Previous qualification', "Mother's qualification", 'Tuition fees up to date',
-        "Mother's occupation", 'Gender', 'Scholarship holder', 'Age at enrollment', 'Curricular units 1st sem ('
-                                                                                    'approved)',
-        'Curricular units 2nd sem (approved)', 'Target']
+cols = cols = ["Mother's qualification", "Father's qualification", "Father's occupation", "Mother's occupation"
+    , 'Displaced', 'Educational special needs', 'Debtor',
+                    'Tuition fees up to date', 'Scholarship holder', 'International', 'Target']
 
 # Keep only relevant columns
 df = df[cols]
