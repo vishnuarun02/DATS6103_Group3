@@ -2,11 +2,13 @@ import pandas as pd
 import numpy as np
 import math
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, PredefinedSplit, GridSearchCV
-import seaborn as sns
-from sklearn.ensemble import RandomForestClassifier
 from scipy.stats import chi2_contingency
-import sklearn.metrics as metrics
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, roc_curve, roc_auc_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
 
 students = pd.read_csv('C:/Users/luhua/Desktop/DS03/final pre/data.csv', delimiter=';')
 df = students.copy()
@@ -89,88 +91,81 @@ for col in ['Debtor', 'Tuition fees up to date', 'Scholarship holder', 'Internat
 # needs and International is 0.0, with a p-value of 1.0. There may be no obvious connection between the two.
 
 # random forest
+
+# List of columns to keep
 cols = ['Application mode', 'Course', 'Previous qualification', "Mother's qualification", 'Tuition fees up to date',
         "Mother's occupation", 'Gender', 'Scholarship holder', 'Age at enrollment', 'Curricular units 1st sem ('
                                                                                     'approved)',
         'Curricular units 2nd sem (approved)', 'Target']
 
-# Keep only relevant columns.
+# Keep only relevant columns
 df = df[cols]
 
-# Remove enrolled students.
+# Remove 'Enrolled' students from the dataset
 df = df[df['Target'] != 'Enrolled']
 
-# Convert into numerical data type.
+# Convert 'Target' column into numerical data type
 df = df.replace({'Target': {'Dropout': 0, 'Graduate': 1}})
-cols = ['Tuition fees up to date', 'Gender', 'Scholarship holder', 'Target']
-df[cols] = df[cols].astype('int32')
+df['Target'] = df['Target'].astype('int32')
 
-# Perform one-hot encoding.
+# Perform one-hot encoding for categorical columns
 df = pd.get_dummies(df, drop_first=True)
-results = pd.DataFrame(columns=['Algorithm', 'Accuracy', 'Precision', 'Recall', 'F1 Score'])
 
-# Predicting variable.
+# Define predictor and target variables
 y = df['Target']
+X = df.drop('Target', axis=1)
 
-# Predictor features.
-X = df.copy()
-X = X.drop('Target', axis=1)
-
-# Create training and test sets, 75% and 25% respectively.
+# Split data into training and test sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=0)
 
-
-def conf_matrix_plot(model, x_data, y_data):
-    model_pred = model.predict(x_data)
-    cm = metrics.confusion_matrix(y_data, model_pred)
-    disp = metrics.ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Dropout', 'Graduate'], )
-    disp.plot(values_format='')
-    plt.show()
-
-
-def plot_roc_curve(true_y, y_probs):
-    fpr, tpr, thresholds = metrics.roc_curve(true_y, y_probs)
-    auc = metrics.roc_auc_score(true_y, y_probs)
-    plt.plot(fpr, tpr)
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title(f'ROC Curve (AUC = {auc:.2f})')
-    plt.show()
-
-
-def print_results(algo, y_test, y_preds):
-    print(f"{algo}")
-    accuracy = metrics.accuracy_score(y_test, y_preds)
-    precision = metrics.precision_score(y_test, y_preds)
-    recall = metrics.recall_score(y_test, y_preds)
-    f1_score = metrics.f1_score(y_test, y_preds)
-
-    print(f"Accuracy: {accuracy:.3f}")
-    print(f"Precision: {precision:.3f}")
-    print(f"Recall: {recall:.3f}")
-    print(f"F1 Score: {f1_score:.3f}")
-
-    # Write results into a dataframe
-    row = {'Algorithm': algo, 'Accuracy': accuracy,
-           'Precision': precision, 'Recall': recall,
-           'F1 Score': f1_score}
-    results = pd.DataFrame(row, index=[0])
-    return results
-
-
+# Set up Random Forest classifier and GridSearchCV
 rf = RandomForestClassifier(random_state=0)
+param_grid = {
+    'n_estimators': [50, 100, 150],
+    'max_depth': [None, 10, 20, 30],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4],
+}
+
+grid_search = GridSearchCV(rf, param_grid, cv=5, scoring='accuracy')
+grid_search.fit(X_train, y_train)
+
+print("Best Hyperparameters:", grid_search.best_params_)
+rf_accuracy = grid_search.best_estimator_.score(X_test, y_test)
+print("Test Accuracy:", rf_accuracy)
+
+# Fit the model with best parameters from GridSearchCV
+rf = RandomForestClassifier(**grid_search.best_params_, random_state=0)
 rf.fit(X_train, y_train)
 
-# Make predictions on set tests
+# Make predictions on the test set
 y_preds = rf.predict(X_test)
 
-# Print model evaluation results
-results = print_results('Random forest', y_test, y_preds)
-print(results)
+# Evaluate model performance
+accuracy = accuracy_score(y_test, y_preds)
+precision = precision_score(y_test, y_preds)
+recall = recall_score(y_test, y_preds)
+f1 = f1_score(y_test, y_preds)
+
+print(f"Accuracy: {accuracy:.3f}")
+print(f"Precision: {precision:.3f}")
+print(f"Recall: {recall:.3f}")
+print(f"F1 Score: {f1:.3f}")
 
 # Plot confusion matrix
-conf_matrix_plot(rf, X_test, y_test)
+cm = confusion_matrix(y_test, y_preds)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Dropout', 'Graduate'])
+disp.plot(cmap='Blues')
+plt.title('Confusion Matrix')
+plt.show()
 
-# Calculate predicted probabilities and plot an ROC curve
+# Calculate predicted probabilities and plot ROC curve
 y_preds_prob_rf = rf.predict_proba(X_test)[:, 1]
-plot_roc_curve(y_test, y_preds_prob_rf)
+fpr, tpr, thresholds = roc_curve(y_test, y_preds_prob_rf)
+auc = roc_auc_score(y_test, y_preds_prob_rf)
+
+plt.plot(fpr, tpr)
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title(f'ROC Curve (AUC = {auc:.2f})')
+plt.show()
