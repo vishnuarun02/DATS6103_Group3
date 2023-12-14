@@ -273,3 +273,93 @@ print(f'P-value: {p}')
 print("The Chi-square test of independence yields an extremely low p-value")
 print("This means that we can reject the null hypothesis and conclude that there is a statistically significant association between the two variables 'Marital status' and 'Target' ")
 
+
+
+
+
+#%%
+# Modeling
+df = df[df['Target'] != 'Enrolled']
+cols = ['Age at enrollment', 'Gender', 'Marital status', 'Displaced', 'Debtor', 'Tuition fees up to date',
+        'Scholarship holder', 'Application mode', 'Attendance Mode', 'Course', 'Curricular units 2nd sem (approved)',
+        'Previous qualification', "Mother's occupation", 'Target']
+df = df[cols]
+
+# Convert into numerical data type.
+df = df.replace({'Target': {'Dropout': 0, 'Graduate': 1}})
+df = df.replace({'Gender': {'Female': 0, 'Male': 1}})
+df = df.replace({'Marital status': {'Single': 0, 'Married': 1, 'Divorced': 2, 'Facto union': 3, 'Legally separated': 4, 'Widower': 5}})
+cols = ['Marital status', 'Tuition fees up to date', 'Gender', 'Scholarship holder', 'Target']
+df[cols] = df[cols].astype('int32')
+
+# Predictor
+X = df.copy()
+X = X.drop('Target', axis = 1)
+
+# Target
+y = df['Target']
+
+# Train Test split: 75% and 25%
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=0)
+
+# Scaling the training data
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+def model_metrics(y_test, y_pred):
+    model_metrics_dict = {}
+    model_metrics_dict['accuracy'] = metrics.accuracy_score(y_test, y_pred)
+    model_metrics_dict['precision'] = metrics.precision_score(y_test, y_pred)
+    model_metrics_dict['recall'] = metrics.recall_score(y_test, y_pred)
+    model_metrics_dict['f1_score'] = metrics.f1_score(y_test, y_pred)
+    return model_metrics_dict
+
+def confusion_matrix_func(y_test, y_pred): # Confusion matrix
+    cm = confusion_matrix(y_test, y_pred)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Dropout', 'Graduate'], yticklabels=['Dropout', 'Graduate'])
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.title('Confusion Matrix for KNN Model')
+    plt.show()
+
+def roc_auc(y_test, y_prob): 
+    fpr, tpr, thresholds = roc_curve(y_test, y_prob) # ROC curve
+    roc_auc = roc_auc_score(y_test, y_prob) # AUC-ROC score
+    plt.figure(figsize=(8, 6)) # Plot ROC
+    plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (AUC = {:.2f})'.format(roc_auc))
+    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC Curve for KNN Model')
+    plt.legend(loc='lower right')
+    plt.show()
+
+#%%
+# KNN model
+knn = KNeighborsClassifier()
+param_grid = {'n_neighbors': [3, 5, 7, 9, 11, 13],
+              'weights': ['uniform', 'distance']}
+grid_search = GridSearchCV(knn, param_grid,
+                           cv=5, scoring='accuracy')
+
+grid_search.fit(X_train, y_train)
+print("Best Hyperparameters:", grid_search.best_params_)
+
+knn = grid_search.best_estimator_
+knn.fit(X_train, y_train)
+y_pred = knn.predict(X_test)
+
+model_metrics_dict = model_metrics(y_test, y_pred)
+print('Accuracy: ', round(model_metrics_dict['accuracy'], 4))
+print('Precision: ', round(model_metrics_dict['precision'], 4))
+print('Recall: ', round(model_metrics_dict['recall'], 4))
+print('F1 score: ', round(model_metrics_dict['f1_score'], 4))
+
+confusion_matrix_func(y_test, y_pred)
+
+y_prob = grid_search.best_estimator_.predict_proba(X_test)[:, 1] #predicted probabilities for positive class
+roc_auc(y_test, y_prob)
+
+print("Classification Report for KNN model:\n", classification_report(y_test, y_pred))
