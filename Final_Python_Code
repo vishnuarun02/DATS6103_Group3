@@ -273,7 +273,34 @@ print(f'P-value: {p}')
 print("The Chi-square test of independence yields an extremely low p-value")
 print("This means that we can reject the null hypothesis and conclude that there is a statistically significant association between the two variables 'Marital status' and 'Target' ")
 
+#%%
+# Columns
+categorical_cols = ['Marital status', 'Application mode', 'Application order', 'Course', "Attendance Mode",
+        'Previous qualification', 'Nationality', "Mother's qualification", "Father's qualification",
+        "Mother's occupation", "Father's occupation", 'Displaced', 'Educational special needs', 'Debtor',
+        'Tuition fees up to date', 'Gender', 'Scholarship holder', 'International', 'Target']
+# Create an DataFrame
+cramer_matrix = pd.DataFrame(index=categorical_cols, columns=categorical_cols)
 
+for i in range(len(categorical_cols)):
+    for j in range(len(categorical_cols)):
+        if i != j:
+            contingency_table = pd.crosstab(df[categorical_cols[i]], df[categorical_cols[j]])
+            chi2, _, _, _ = chi2_contingency(contingency_table)
+            n = contingency_table.sum().sum()
+            min_dim = min(contingency_table.shape)
+            cramer_v = np.sqrt(chi2 / (n * (min_dim - 1)))
+            cramer_matrix.loc[categorical_cols[i], categorical_cols[j]] = cramer_v
+# Convert value
+cramer_matrix = cramer_matrix.apply(pd.to_numeric)
+
+# Plot the heatmap
+plt.figure(figsize=(14, 12))
+heatmap = sns.heatmap(cramer_matrix, annot=True, cmap='Reds', fmt=".2f")
+heatmap.set_xticklabels(heatmap.get_xticklabels(), rotation=45, fontsize='small')
+heatmap.set_yticklabels(heatmap.get_yticklabels(), rotation=0, fontsize='small')
+plt.title("Cramer's V Heatmap")
+plt.show()
 
 
 
@@ -363,3 +390,48 @@ y_prob = grid_search.best_estimator_.predict_proba(X_test)[:, 1] #predicted prob
 roc_auc(y_test, y_prob)
 
 print("Classification Report for KNN model:\n", classification_report(y_test, y_pred))
+
+#%%
+# Random Forest model
+
+# Set up Random Forest classifier and CV
+rf = RandomForestClassifier(random_state=0)
+cv_params = {'n_estimators' : [25, 50, 75, 100],
+              'max_depth' : [10, 30, 50, 70],
+              'min_samples_leaf' : [0.5, 0.75, 1],
+              'min_samples_split' : [0.001, 0.005, 0.01],
+              'max_features' : ['sqrt'],
+              'max_samples' : [.3,.5,.7,.9]}
+
+rf = RandomForestClassifier(random_state=0)
+rf_val = GridSearchCV(rf, cv_params, cv=3, refit='accuracy', n_jobs = -1, verbose = 1)
+rf_val.fit(X_train, y_train)
+
+grid_search = GridSearchCV(rf, cv_params, cv=5, scoring='accuracy')
+grid_search.fit(X_train, y_train)
+
+print("Best Hyperparameters:", grid_search.best_params_)
+rf_accuracy = grid_search.best_estimator_.score(X_test, y_test)
+print("Test Accuracy:", rf_accuracy)
+
+# Use the best parameters of GridSearchCV to fit the model
+rf = RandomForestClassifier(**grid_search.best_params_, random_state=0)
+rf.fit(X_train, y_train)
+
+# Predictions
+y_preds = rf.predict(X_test)
+
+model_metrics_dict = model_metrics(y_test, y_pred)
+print('Accuracy: ', round(model_metrics_dict['accuracy'], 4))
+print('Precision: ', round(model_metrics_dict['precision'], 4))
+print('Recall: ', round(model_metrics_dict['recall'], 4))
+print('F1 score: ', round(model_metrics_dict['f1_score'], 4))
+
+confusion_matrix_func(y_test, y_pred)
+
+y_prob = grid_search.best_estimator_.predict_proba(X_test)[:, 1] #predicted probabilities for positive class
+roc_auc(y_test, y_prob)
+
+print("Classification Report for Random Forest model:\n", classification_report(y_test, y_pred))
+
+
