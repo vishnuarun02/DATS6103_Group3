@@ -1,4 +1,3 @@
-#%%
 import pandas as pd
 import numpy as np
 import math
@@ -21,9 +20,8 @@ from sklearn.svm import SVC
 import sklearn.metrics as metrics
 from sklearn.metrics import accuracy_score, precision_score, recall_score, accuracy_score, f1_score, confusion_matrix, roc_curve, roc_auc_score, classification_report, ConfusionMatrixDisplay
 
-#%%
 pd.set_option('display.max_columns', None) # to display all columns in the dataset without truncating
-df_initial = pd.read_csv('/Users/krishnasurya/Documents/3_DM_project/students.csv', delimiter=';') # load the dataset
+df_initial = pd.read_csv('/Users/bhoomikan/Desktop/students.csv', delimiter=';') # load the dataset
 if 'Daytime/evening attendance\t' in df_initial.columns.to_list():
     df_initial = df_initial.rename(columns={'Daytime/evening attendance\t': 'Attendance Mode'})
 else:
@@ -302,16 +300,12 @@ heatmap.set_yticklabels(heatmap.get_yticklabels(), rotation=0, fontsize='small')
 plt.title("Cramer's V Heatmap")
 plt.show()
 
-#%%
-#1. variable application mode
-df_filtered = df[df['Target'] != 'enrolled']
-
-mode_order = df_filtered['Application mode'].value_counts().index
+mode_order = df['Application mode'].value_counts().index
 
 sns.set_style("whitegrid")
 pastel_palette = sns.color_palette("pastel")
 plt.figure(figsize=(10, 6))
-sns.countplot(x='Target', hue='Application mode', data=df_filtered, hue_order=mode_order, palette=pastel_palette)
+sns.countplot(x='Target', hue='Application mode', data=df, hue_order=mode_order, palette=pastel_palette)
 
 plt.xticks([0, 1], ['dropout', 'graduate'])
 
@@ -341,17 +335,8 @@ if p < alpha:
 else:
      print("There is no significant association between Application Mode and Target.")
 
-#%%
-#2.variable application order
-#exclude category '2'
-df_filtered = df[df['Target'] != 2]
-
-#plotstyle
-sns.set_style("whitegrid")
-pastel_palette = sns.color_palette("pastel")
-#countplot
 plt.figure(figsize=(10, 6))
-sns.countplot(x='Application order', hue='Target', data=df_filtered, palette=pastel_palette)
+sns.countplot(x='Application order', hue='Target', data=df)
 
 plt.title('Distribution of Target Variable Across Order of Application')
 plt.xlabel('Application Order')
@@ -384,37 +369,6 @@ if p < alpha:
 else:
     print("There is no significant relationship between Application Order and Target.")
 
-#%%
-#3.variable Daytime/evening attendance
-# Map the numerical attendance to categorical
-
-df_analysis = df.copy()
-# mapping attendance 
-df_analysis['Attendance Mode'] = df_analysis['Daytime/evening attendance'].map({1: 'Daytime', 0: 'Evening'})
-
-# Filter out 'Enrolled' students
-df_analysis_filtered = df_analysis[df_analysis['Target'] != 1]
-
-#new column
-target_mapping = {0: 'Dropped Out', 2: 'Graduated'}
-df_analysis_filtered['Target Category'] = df_analysis_filtered['Target'].map(target_mapping)
-
-#plot
-attendance_outcomes = df_analysis_filtered.groupby(['Attendance Mode', 'Target Category']).size().unstack(fill_value=0)
-plt.figure(figsize=(10, 6))
-attendance_outcomes.plot(kind='bar', stacked=True, color=['#77dd77', '#836953'])
-plt.title('Distribution of Target Outcomes for Daytime vs Evening Attendance')
-plt.xlabel('Attendance Mode')
-plt.ylabel('Number of Students')
-plt.xticks(rotation=0)
-plt.legend(title='Student Outcome')
-plt.tight_layout()
-plt.show()
-
-
-#%%
-#4.variable Course
-#course IDs wrt names
 course_names = { 
      33: 'Biofuel Production Technologies',
      171: 'Animation and Multimedia Design',
@@ -435,26 +389,16 @@ course_names = {
 
 df['Course Name'] = df['Course'].map(course_names)
 
-#exclude category '2'
-df_filtered = df[df['Target'].isin([0, 1])]
-
-#percentage of students in each course category 
-df_filtered['count'] = 1  # Add a temporary count column for aggregation
-df_percentages = df_filtered.groupby(['Course Name', 'Target'])['count'].count().groupby(level=0).apply(lambda x: 100 * x / float(x.sum())).reset_index()
+df['count'] = 1  
+df_percentages = df.groupby(['Course Name', 'Target'])['count'].count().groupby(level=0).apply(lambda x: 100 * x / float(x.sum())).reset_index()
 df_percentages.rename(columns={'count': 'Percentage'}, inplace=True)
-
-#plot
 plt.figure(figsize=(20, 10))
 sns.barplot(x='Course Name', y='Percentage', hue='Target', data=df_percentages, palette=pastel_palette)
-
-#title and labels
 plt.title('Distribution of Target Outcomes Across Courses (Percentage)', fontsize=16)
 plt.xlabel('Courses', fontsize=20)
 plt.ylabel('Percentage of Students', fontsize=20)
 plt.xticks(rotation=80, fontsize=18)
 plt.yticks(fontsize=24)
-
-#convert y-axis labels to percentages
 vals = plt.gca().get_yticks()
 plt.gca().set_yticklabels(['{:.0f}%'.format(x) for x in vals])
 
@@ -463,7 +407,7 @@ plt.legend(title='Outcome', fontsize=15, title_fontsize=15, labels=['Graduate', 
 plt.tight_layout()
 plt.show()
 
-df_filtered.drop('count', axis=1, inplace=True)
+#df_filtered.drop('count', axis=1, inplace=True)
 
 
 #stat_test
@@ -484,9 +428,98 @@ if p < alpha:
 else:
      print("There is no significant relationship between Course  and Target.")
 
+cols = [
+    'Curricular units 1st sem (credited)', 'Curricular units 1st sem (enrolled)',
+    'Curricular units 1st sem (evaluations)', 'Curricular units 1st sem (approved)',
+    'Curricular units 1st sem (grade)', 'Curricular units 1st sem (without evaluations)',
+    'Curricular units 2nd sem (credited)', 'Curricular units 2nd sem (enrolled)',
+    'Curricular units 2nd sem (evaluations)', 'Curricular units 2nd sem (approved)',
+    'Curricular units 2nd sem (grade)', 'Curricular units 2nd sem (without evaluations)',
+    'Unemployment rate', 'Inflation rate', 'GDP']
+
+n_cols = 3  # Number of columns in subplot grid
+n_rows = (len(cols) + n_cols - 1) // n_cols  # Calculate the number of rows needed
+
+# Create subplots for box plots
+fig, axs = plt.subplots(n_rows, n_cols, figsize=(12, 12))
+plt.subplots_adjust(hspace=0.5)
+
+# Flatten the axs array for easy iteration
+axs = axs.flatten()
+
+# Iterate and create box plots
+for index, col in enumerate(cols):
+    sns.boxplot(data=df, x='Target', y=col, showfliers=False, ax=axs[index])
+    axs[index].set(xlabel=None, ylabel=None, title=col)
+
+# Adjust the layout of box plots
+plt.tight_layout()
+
+def histplot_visual(data: pd.DataFrame, columns: list[str]) -> None:
+  """Create a histogram plot using a subset of variables specified.
+
+  Args:
+    data: Input data-frame containing variables we wish to plot.
+    columns: Listing of column-names we wish to plot (must be contained within data).
+  """
+  fig, ax = plt.subplots(3, 5, figsize=(15, 6))
+  fig.suptitle('Histogram for each numeric variable in our data',y=1, size=20)
+  ax=ax.flatten()
+  for i,feature in enumerate(columns):
+    # Setting option `kde=True` allows for a Kernel Density Estimate (i.e. PDF).
+    sns.histplot(data=data[feature],ax=ax[i], kde=True)
+  plt.tight_layout()
+
+histplot_visual(data=df,columns=cols)
+
+cols = [
+    'Curricular units 1st sem (credited)', 'Curricular units 1st sem (enrolled)',
+    'Curricular units 1st sem (evaluations)', 'Curricular units 1st sem (approved)',
+    'Curricular units 1st sem (grade)', 'Curricular units 1st sem (without evaluations)',
+    'Curricular units 2nd sem (credited)', 'Curricular units 2nd sem (enrolled)',
+    'Curricular units 2nd sem (evaluations)', 'Curricular units 2nd sem (approved)',
+    'Curricular units 2nd sem (grade)', 'Curricular units 2nd sem (without evaluations)',
+    'Unemployment rate', 'Inflation rate', 'GDP','Target']
+# Create a separate subplot for the correlation ratio
+fig, ax = plt.subplots(figsize=(12, 8))
+cor_ratio = associations(df[cols], nom_num_assoc='correlation_ratio', num_num_assoc='pearson', ax=ax, cmap='Blues')
+plt.show()
+
+y = df['Curricular units 1st sem (grade)']
+x = df['Curricular units 2nd sem (grade)']
+plt.scatter(x, y)
+plt.title('Scatter Plot For Grades')
+plt.xlabel('Curricular units 1st sem (grade)')
+plt.ylabel('Curricular units 2nd sem (grade)')
+plt.show()
+
+y = df['Curricular units 1st sem (approved)']
+x = df['Curricular units 2nd sem (approved)']
+plt.scatter(x, y)
+plt.title('Scatter Plot For Sem')
+plt.xlabel('Curricular units 1st sem (approved)')
+plt.ylabel('Curricular units 2nd sem (approved)')
+plt.show()
+
+#H0: The mean of 2nd sem approved for graduate and dropout is same
+#Ha: The mean of 2nd sem approved for graduate and dropout is different
+import scipy.stats as stats
+
+dropout_df = df[df['Target']=='Dropout']
+graduate_df = df[df['Target']=='Graduate']
+
+print("Performing t-test on Curriculum units 2nd sem(approved) for the groups graduate and dropout")
+print("H0: The mean of Curriculum units 2nd sem(approved) for graduate and dropout is same")
+print("HA: The mean of Curriculum units 2nd sem(approved) for graduate and dropout is different")
+t_stat, p_val = stats.ttest_ind(dropout_df['Curricular units 2nd sem (approved)'], graduate_df['Curricular units 2nd sem (approved)'])
+print("T-statistic:", t_stat)
+print("P-value:", p_val)
+
+##The T-statistic is a large negative number (-52.07149770749867), which suggests a significant difference between the two groups. The negative sign indicates that the first group's mean is lower than the second group's mean
+##A P-value of 0.0 suggests that the probability of observing the data (or more extreme) assuming the null hypothesis is true is extremely low (essentially zero). 
 
 
-#%%
+
 # Modeling
 df = df[df['Target'] != 'Enrolled']
 cols = ['Age at enrollment', 'Gender', 'Marital status', 'Displaced', 'Debtor', 'Tuition fees up to date',
@@ -545,7 +578,6 @@ def roc_auc(y_test, y_prob):
     plt.legend(loc='lower right')
     plt.show()
 
-#%%
 # KNN model
 knn = KNeighborsClassifier()
 param_grid = {'n_neighbors': [3, 5, 7, 9, 11, 13],
@@ -573,7 +605,6 @@ roc_auc(y_test, y_prob)
 
 print("Classification Report for KNN model:\n", classification_report(y_test, y_pred))
 
-#%%
 # Random Forest model
 
 # Set up Random Forest classifier and CV
@@ -616,4 +647,57 @@ roc_auc(y_test, y_prob)
 
 print("Classification Report for Random Forest model:\n", classification_report(y_test, y_pred))
 
+def perform(y_pred):
+    print("Precision : ", precision_score(y_test, y_pred, average = 'micro'))
+    print("Recall : ", recall_score(y_test, y_pred, average = 'micro'))
+    print("Accuracy : ", accuracy_score(y_test, y_pred))
+    print("F1 Score : ", f1_score(y_test, y_pred, average = 'micro'))
+    cm = confusion_matrix(y_test, y_pred)
+    print("\n", cm)
+    print("\n")
+    print("*"*27 + "\n" + " "*16 + "Classification Report\n" + "*"*27)
+    print(classification_report(y_test, y_pred))
+    print("**"*27+"\n")
 
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt='g', cmap=sns.color_palette("pastel"), cbar=False)
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    plt.title('Confusion Matrix')
+    plt.xticks(ticks=[0.5, 1.5], labels=['Dropout', 'Non-Dropout'])
+    plt.yticks(ticks=[0.5, 1.5], labels=['Dropout', 'Non-Dropout'])
+    plt.show()
+
+#Naive bayes model
+model_nb = GaussianNB()
+model_nb.fit(X_train, y_train) 
+y_pred_nb = model_nb.predict(X_test)  
+#model performance
+perform(y_pred_nb) 
+
+#Support vector machine model
+model_svc = SVC(C=0.1, kernel='linear')
+model_svc.fit(X_train, y_train)  
+y_pred_svc = model_svc.predict(X_test) 
+#model performance
+perform(y_pred_svc)
+
+
+lr = LogisticRegression()
+lr.fit(X_train, y_train)
+y_preds = lr.predict(X_test)
+perform(y_preds)
+
+y_probs = lr.predict_proba(X_test)[:, 1]
+fpr, tpr, thresholds = roc_curve(y_test, y_probs)
+roc_auc = roc_auc_score(y_test, y_probs)
+plt.figure(figsize=(8, 6))
+plt.plot(fpr, tpr, color='blue', lw=2, label=f'ROC curve (area = {roc_auc:.2f})')
+plt.plot([0, 1], [0, 1], color='gray', lw=2, linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic (ROC)')
+plt.legend(loc="lower right")
+plt.show()
