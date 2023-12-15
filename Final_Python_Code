@@ -302,6 +302,188 @@ heatmap.set_yticklabels(heatmap.get_yticklabels(), rotation=0, fontsize='small')
 plt.title("Cramer's V Heatmap")
 plt.show()
 
+#%%
+#1. variable application mode
+df_filtered = df[df['Target'] != 'enrolled']
+
+mode_order = df_filtered['Application mode'].value_counts().index
+
+sns.set_style("whitegrid")
+pastel_palette = sns.color_palette("pastel")
+plt.figure(figsize=(10, 6))
+sns.countplot(x='Target', hue='Application mode', data=df_filtered, hue_order=mode_order, palette=pastel_palette)
+
+plt.xticks([0, 1], ['dropout', 'graduate'])
+
+plt.title('Distribution of Target Variable Across Different Application Modes')
+plt.xlabel('Target')
+plt.ylabel('No Of Students')
+
+plt.legend(title='Application mode')
+plt.xlim(-0.50, 1.0)
+plt.show()
+
+#Chi-square test for application mode
+#Contingency table
+contingency_table = pd.crosstab(df['Application mode'], df['Target'])
+
+#Chi-square test
+chi2, p, _, _ = chi2_contingency(contingency_table)
+
+# #Results
+print("Chi-square statistic:", chi2)
+print("P-value:", p)
+
+# #p-value
+alpha = 0.05
+if p < alpha:
+     print("There is a significant association between Application Mode and Target.")
+else:
+     print("There is no significant association between Application Mode and Target.")
+
+#%%
+#2.variable application order
+#exclude category '2'
+df_filtered = df[df['Target'] != 2]
+
+#plotstyle
+sns.set_style("whitegrid")
+pastel_palette = sns.color_palette("pastel")
+#countplot
+plt.figure(figsize=(10, 6))
+sns.countplot(x='Application order', hue='Target', data=df_filtered, palette=pastel_palette)
+
+plt.title('Distribution of Target Variable Across Order of Application')
+plt.xlabel('Application Order')
+plt.ylabel('Number of Students')
+
+legend_labels = {0: 'Graduated', 1: 'Dropped Out'}
+plt.legend(title='Target', labels=legend_labels.values())
+
+plt.show()
+
+#chi-square test for application mode
+
+#typecasting 'Application order' to  categorical variable
+df['Application order'] = pd.Categorical(df['Application order'])
+
+#contingency table
+contingency_table = pd.crosstab(df['Application order'], df['Target'])
+
+#chi-square test
+chi2, p, _, _ = chi2_contingency(contingency_table)
+
+#results
+print(f"Chi-square Statistic: {chi2}")
+print(f"P-value: {p}")
+
+#p-value
+alpha = 0.05
+if p < alpha:
+    print("There is a significant relationship between Application Order and Target.")
+else:
+    print("There is no significant relationship between Application Order and Target.")
+
+#%%
+#3.variable Daytime/evening attendance
+# Map the numerical attendance to categorical
+
+df_analysis = df.copy()
+# mapping attendance 
+df_analysis['Attendance Mode'] = df_analysis['Daytime/evening attendance'].map({1: 'Daytime', 0: 'Evening'})
+
+# Filter out 'Enrolled' students
+df_analysis_filtered = df_analysis[df_analysis['Target'] != 1]
+
+#new column
+target_mapping = {0: 'Dropped Out', 2: 'Graduated'}
+df_analysis_filtered['Target Category'] = df_analysis_filtered['Target'].map(target_mapping)
+
+#plot
+attendance_outcomes = df_analysis_filtered.groupby(['Attendance Mode', 'Target Category']).size().unstack(fill_value=0)
+plt.figure(figsize=(10, 6))
+attendance_outcomes.plot(kind='bar', stacked=True, color=['#77dd77', '#836953'])
+plt.title('Distribution of Target Outcomes for Daytime vs Evening Attendance')
+plt.xlabel('Attendance Mode')
+plt.ylabel('Number of Students')
+plt.xticks(rotation=0)
+plt.legend(title='Student Outcome')
+plt.tight_layout()
+plt.show()
+
+
+#%%
+#4.variable Course
+#course IDs wrt names
+course_names = { 
+     33: 'Biofuel Production Technologies',
+     171: 'Animation and Multimedia Design',
+     8014: 'Social Service (evening attendance)',
+     9003: 'Agronomy',
+     9070: 'Communication Design',
+     9085: 'Veterinary Nursing',
+     9119: 'Informatics Engineering',
+     9130: 'Equinculture',
+     9147: 'Management',
+     9238: 'Social Service',
+     9254: 'Tourism',
+     9500: 'Nursing',
+     9556: 'Oral Hygiene',
+     9670: 'Advertising and Marketing Management',
+     9773: 'Journalism and Communication',     9853: 'Basic Education', 9991: 'Management (evening attendance)'
+}
+
+df['Course Name'] = df['Course'].map(course_names)
+
+#exclude category '2'
+df_filtered = df[df['Target'].isin([0, 1])]
+
+#percentage of students in each course category 
+df_filtered['count'] = 1  # Add a temporary count column for aggregation
+df_percentages = df_filtered.groupby(['Course Name', 'Target'])['count'].count().groupby(level=0).apply(lambda x: 100 * x / float(x.sum())).reset_index()
+df_percentages.rename(columns={'count': 'Percentage'}, inplace=True)
+
+#plot
+plt.figure(figsize=(20, 10))
+sns.barplot(x='Course Name', y='Percentage', hue='Target', data=df_percentages, palette=pastel_palette)
+
+#title and labels
+plt.title('Distribution of Target Outcomes Across Courses (Percentage)', fontsize=16)
+plt.xlabel('Courses', fontsize=20)
+plt.ylabel('Percentage of Students', fontsize=20)
+plt.xticks(rotation=80, fontsize=18)
+plt.yticks(fontsize=24)
+
+#convert y-axis labels to percentages
+vals = plt.gca().get_yticks()
+plt.gca().set_yticklabels(['{:.0f}%'.format(x) for x in vals])
+
+plt.legend(title='Outcome', fontsize=15, title_fontsize=15, labels=['Graduate', 'Dropout'])
+
+plt.tight_layout()
+plt.show()
+
+df_filtered.drop('count', axis=1, inplace=True)
+
+
+#stat_test
+#contingency table
+contingency_table = pd.crosstab(df['Course Name'], df['Target'])
+
+#chi-square test
+chi2, p, _, _ = chi2_contingency(contingency_table)
+
+#results
+print(f"Chi-square Statistic: {chi2}")
+print(f"P-value: {p}")
+
+#p-value
+alpha = 0.05
+if p < alpha:
+     print("There is a significant relationship between Course and Target.")
+else:
+     print("There is no significant relationship between Course  and Target.")
+
 
 
 #%%
